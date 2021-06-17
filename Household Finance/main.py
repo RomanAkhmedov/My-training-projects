@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
+import sqlite3
 
 
 class Main(tk.Frame):
@@ -70,6 +71,21 @@ class Child(tk.Toplevel):
 
         self.grab_set()
         self.focus_set()
+
+
+class DB:
+    def __init__(self):
+        self.conn = sqlite3.connect('finance.db')
+        self.c = self.conn.cursor()
+        self.c.execute(
+            '''CREATE TABLE IF NOT EXISTS finance (
+            id INTEGER PRIMARY KEY,
+            description TEXT,
+            costs TEXT,
+            total REAL
+            )'''
+        )
+        self.conn.commit()
 
 
 if __name__ == '__main__':

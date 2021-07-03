@@ -37,6 +37,12 @@ class Main(tk.Frame):
         self.db.insert_data(description, costs, total)
         self.view_records()
 
+    def update_record(self, description, costs, total):
+        self.db.c.execute('''UPDATE finance description=?, costs=?, total=? WHERE ID=?''',
+                          (description, costs, total, self.tree.set(self.tree.selection()[0], '#1')))
+        self.db.conn.commit()
+        self.view_records()
+
     def view_records(self):
         self.db.c.execute('''SELECT * FROM finance''')
         [self.tree.delete(i) for i in self.tree.get_children()]

@@ -1,11 +1,14 @@
 import tkinter as tk
 from tkinter import ttk
+import sqlite3
 
 
 class Main(tk.Frame):
     def __init__(self, root):
         super().__init__(root)
         self.init_main()
+        self.db = db
+        self.view_records()
 
     def init_main(self):
         toolbar = tk.Frame(bg='#d7d8e0', bd=2)
@@ -15,6 +18,11 @@ class Main(tk.Frame):
         btn_open_dialog = tk.Button(toolbar, text='Добавить позицию', command=self.open_dialog, bg='#d7d8e0', bd=0,
                                     compound=tk.TOP, image=self.add_img)
         btn_open_dialog.pack(side=tk.LEFT)
+
+        self.update_img = tk.PhotoImage(file='img/update.png')
+        btn_edit_dialog = tk.Button(toolbar, text='Редактировать', command=self.open_update_dialog, bg='#d7d8e0', bd=0,
+                                    compound=tk.TOP, image=self.update_img)
+        btn_edit_dialog.pack(side=tk.LEFT)
 
         self.tree = ttk.Treeview(self, columns=('ID', 'description', 'costs', 'total'), height=15, show='headings')
 
@@ -30,14 +38,33 @@ class Main(tk.Frame):
 
         self.tree.pack()
 
+    def records(self, description, costs, total):
+        self.db.insert_data(description, costs, total)
+        self.view_records()
+
+    def update_record(self, description, costs, total):
+        self.db.c.execute('''UPDATE finance SET description=?, costs=?, total=? WHERE ID=?''',
+                          (description, costs, total, self.tree.set(self.tree.selection()[0], '#1')))
+        self.db.conn.commit()
+        self.view_records()
+
+    def view_records(self):
+        self.db.c.execute('''SELECT * FROM finance''')
+        [self.tree.delete(i) for i in self.tree.get_children()]
+        [self.tree.insert('', 'end', values=row) for row in self.db.c.fetchall()]
+
     def open_dialog(self):
         Child()
+
+    def open_update_dialog(self):
+        Update()
 
 
 class Child(tk.Toplevel):
     def __init__(self):
         super().__init__(root)
         self.init_child()
+        self.view = app
 
     def init_child(self):
         self.title('Добавить доходы/расходы')
@@ -64,16 +91,54 @@ class Child(tk.Toplevel):
         btn_cancel = ttk.Button(self, text='Закрыть', command=self.destroy)
         btn_cancel.place(x=300, y=170)
 
-        btn_ok = ttk.Button(self, text='Добавить')
-        btn_ok.place(x=220, y=170)
-        btn_ok.bind('<Button-1>')
-
+        self.btn_ok = ttk.Button(self, text='Добавить')
+        self.btn_ok.place(x=220, y=170)
+        self.btn_ok.bind('<Button-1>', lambda event: self.view.records(self.entry_description.get(),
+                                                                       self.combobox.get(),
+                                                                       self.entry_money.get()))
         self.grab_set()
         self.focus_set()
 
 
+class Update(Child):
+    def __init__(self):
+        super().__init__()
+        self.init_edit()
+        self.view = app
+
+    def init_edit(self):
+        self.title('Редактировать позицию')
+        btn_edit = ttk.Button(self, text='Редактировать')
+        btn_edit.place(x=205, y=170)
+        btn_edit.bind('<Button-1>', lambda event: self.view.update_record(self.entry_description.get(),
+                                                                          self.combobox.get(),
+                                                                          self.entry_money.get()))
+        self.btn_ok.destroy()
+
+
+class DB:
+    def __init__(self):
+        self.conn = sqlite3.connect('finance.db')
+        self.c = self.conn.cursor()
+        self.c.execute(
+            '''CREATE TABLE IF NOT EXISTS finance (
+            id INTEGER PRIMARY KEY,
+            description TEXT,
+            costs TEXT,
+            total REAL
+            )'''
+        )
+        self.conn.commit()
+
+    def insert_data(self, description, costs, total):
+        self.c.execute('''INSERT INTO finance(description, costs, total) VALUES (?, ?, ?)''',
+                       (description, costs, total))
+        self.conn.commit()
+
+
 if __name__ == '__main__':
     root = tk.Tk()
+    db = DB()
     app = Main(root)
     app.pack()
     root.title('Household Finance')
